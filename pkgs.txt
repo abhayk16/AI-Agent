@@ -1,9 +1,3 @@
-langchain 
-wikipedia 
-langchain-community 
-langchain-openai
-langchain-anthropic
+streamlit
+anthropic
 python-dotenv
-pydantic
-duckduckgo-search
-
