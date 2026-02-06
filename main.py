@@ -6,7 +6,18 @@ from groq import Groq
 load_dotenv()
 
 st.set_page_config(page_title="Abhay's AI")
+
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
+
+
 st.title("Abhay's AI")
+
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
