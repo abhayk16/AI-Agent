@@ -8,12 +8,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI()
-
-# Setup Groq and read secret passwords from .env
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 VALID_PASSWORDS = os.getenv("APP_PASSWORDS", "").split(",")
 
-# Storage for session history and message counts
 sessions = {}
 
 class ChatRequest(BaseModel):
@@ -21,33 +18,40 @@ class ChatRequest(BaseModel):
     password: str
     session_id: str
 
-# 1. VERIFY ENDPOINT: Checks password without exposing the full list
 @app.post("/api/verify")
 async def verify_password(data: dict = Body(...)):
     password = data.get("password")
     if password in VALID_PASSWORDS:
         return {"status": "ok"}
-    # If password is wrong, send 401 Unauthorized
     raise HTTPException(status_code=401, detail="Invalid Password")
 
-# 2. CHAT ENDPOINT: Handles the AI logic
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest):
-    # Double-check password for every message sent
     if req.password not in VALID_PASSWORDS:
         raise HTTPException(status_code=401, detail="Wrong password")
 
-    # Initialize session if it doesn't exist
     if req.session_id not in sessions:
-        sessions[req.session_id] = {"count": 0, "history": []}
+        # THE CORE IT RULES: Identity updated to InfraSupport
+        system_prompt = {
+            "role": "system",
+            "content": (
+                "You are InfraSupport, the official IT Support Assistant for our IT company. "
+                "Your ONLY purpose is to help employees troubleshoot technical issues like VPN, "
+                "Email, Software, and Hardware. "
+                "STRICT RULES: "
+                "1. Only answer IT and technical support related questions. "
+                "2. If the user asks about non-IT topics (cooking, sports, general chat, etc.), "
+                "politely refuse and say you are only authorized for InfraSupport. "
+                "3. Be professional, concise, and helpful. "
+                "4. If you cannot solve an issue, tell them to email helpdesk@company.com."
+            )
+        }
+        sessions[req.session_id] = {"count": 0, "history": [system_prompt]}
     
     user_data = sessions[req.session_id]
-    
-    # Check 5-message limit
     if user_data["count"] >= 5:
         raise HTTPException(status_code=403, detail="Limit reached")
 
-    # Add user message to history
     user_data["history"].append({"role": "user", "content": req.message})
     
     try:
@@ -57,14 +61,10 @@ async def chat_endpoint(req: ChatRequest):
             max_tokens=300
         )
         reply = completion.choices[0].message.content
-        
-        # Update history and count
         user_data["count"] += 1
         user_data["history"].append({"role": "assistant", "content": reply})
-        
         return {"reply": reply, "count": user_data["count"]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="InfraSupport Service Error")
 
-# 3. STATIC MOUNT: Tells FastAPI to show your index.html
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

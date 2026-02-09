@@ -3,55 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Abhay's AI</title>
+    <title>InfraSupport | IT Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Prevents the chat from flickering before the modal loads */
         [id="auth-modal"]:not(.hidden) ~ main,
-        [id="auth-modal"]:not(.hidden) ~ footer {
+        [id="auth-modal"]:not(.hidden) ~ footer,
+        [id="auth-modal"]:not(.hidden) ~ header {
             display: none;
         }
     </style>
 </head>
-<body class="bg-[#0f172a] text-white h-screen flex flex-col overflow-hidden">
+<body class="bg-[#0f172a] text-white h-screen flex flex-col overflow-hidden font-sans">
 
     <div id="auth-modal" class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-6">
         <div class="bg-slate-800 p-8 rounded-2xl w-full max-w-sm border border-slate-700 shadow-2xl">
-            <h1 class="text-2xl font-bold mb-6 text-center">Abhay's AI</h1>
-            <input type="password" id="pwd" placeholder="Enter Password" 
+            <h1 class="text-2xl font-bold mb-1 text-center text-blue-400">InfraSupport</h1>
+            <p class="text-slate-400 text-[10px] text-center mb-6 uppercase tracking-widest">Employee Login Required</p>
+            
+            <input type="password" id="pwd" placeholder="Enter Portal Password" 
                 class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 mb-2 outline-none focus:border-blue-500 text-white">
             
-            <p id="error-txt" class="text-red-500 text-xs mb-4 hidden text-center font-bold tracking-tight">WRONG PASSWORD! ACCESS DENIED.</p>
+            <p id="error-txt" class="text-red-500 text-xs mb-4 hidden text-center font-bold">WRONG PASSWORD! ACCESS DENIED.</p>
             
-            <button onclick="unlock()" id="unlock-btn" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold transition-all">Unlock</button>
+            <button onclick="unlock()" id="unlock-btn" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold transition-all shadow-lg">Unlock Portal</button>
         </div>
     </div>
 
-    <header class="p-4 border-b border-slate-800 text-center font-semibold text-slate-400">Abhay's AI</header>
+    <header class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+        <div class="flex items-center gap-2">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span class="font-bold text-slate-300 tracking-tight text-sm">INFRASUPPORT ASSISTANT</span>
+        </div>
+        <button onclick="location.reload()" class="text-[10px] text-slate-500 hover:text-white border border-slate-700 px-2 py-1 rounded uppercase transition-colors">Logout</button>
+    </header>
 
-    <main id="chat" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col"></main>
+    <main id="chat" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col bg-[#0b1120]"></main>
 
     <footer class="p-4 bg-slate-900 border-t border-slate-800">
         <div class="max-w-4xl mx-auto flex gap-2">
-            <input type="text" id="msg-in" placeholder="Ask anything..." 
-                class="flex-1 bg-slate-800 p-3 rounded-xl outline-none border border-transparent focus:border-blue-500">
-            <button onclick="send()" id="send-btn" class="bg-blue-600 px-6 rounded-xl font-bold active:scale-95 transition-transform">Send</button>
+            <input type="text" id="msg-in" placeholder="Describe your IT issue..." 
+                class="flex-1 bg-slate-800 p-3 rounded-xl outline-none border border-transparent focus:border-blue-500 transition-all">
+            <button onclick="send()" id="send-btn" class="bg-blue-600 px-6 rounded-xl font-bold active:scale-95 transition-transform hover:bg-blue-700">Send</button>
         </div>
-        <p id="counter" class="text-[10px] text-center mt-2 text-slate-500 uppercase font-mono tracking-widest">Messages: 0 / 5</p>
+        <p id="counter" class="text-[9px] text-center mt-2 text-slate-600 uppercase font-mono tracking-widest">Session Usage: 0 / 5</p>
     </footer>
 
     <script>
         let pass = "";
         let sid = Math.random().toString(36).slice(2);
 
-        // SECURE UNLOCK: Asks the backend if the password is valid
         async function unlock() {
             const input = document.getElementById('pwd');
             const error = document.getElementById('error-txt');
             const btn = document.getElementById('unlock-btn');
             
             if (!input.value.trim()) return;
-
             btn.disabled = true;
             btn.innerText = "Verifying...";
 
@@ -63,12 +69,10 @@
                 });
 
                 if (response.ok) {
-                    // Success: Save password for the session and hide the modal
                     pass = input.value;
                     document.getElementById('auth-modal').classList.add('hidden');
                     error.classList.add('hidden');
                 } else {
-                    // Failure: Keep the barrier active
                     error.classList.remove('hidden');
                     input.value = "";
                     input.focus();
@@ -77,11 +81,10 @@
                 alert("Connection Error. Is the Python server running?");
             } finally {
                 btn.disabled = false;
-                btn.innerText = "Unlock";
+                btn.innerText = "Unlock Portal";
             }
         }
 
-        // SEND MESSAGE: Uses the verified password stored in memory
         async function send() {
             const input = document.getElementById('msg-in');
             const btn = document.getElementById('send-btn');
@@ -98,7 +101,6 @@
                     body: JSON.stringify({ message: text, password: pass, session_id: sid })
                 });
 
-                // Force logout if the backend rejects the password mid-session
                 if (res.status === 401) {
                     alert("Unauthorized session. Locking app...");
                     location.reload(); 
@@ -108,17 +110,17 @@
                 const data = await res.json();
                 if(res.ok) {
                     addBubble('ai', data.reply);
-                    document.getElementById('counter').innerText = `MESSAGES: ${data.count} / 5`;
+                    document.getElementById('counter').innerText = `SESSION USAGE: ${data.count} / 5`;
                     if(data.count >= 5) {
                         input.disabled = true;
                         btn.disabled = true;
-                        input.placeholder = "Limit reached.";
+                        input.placeholder = "Support limit reached,raise a ticket please.";
                     }
                 } else {
                     alert(data.detail || "Error communicating with AI");
                 }
             } catch (e) {
-                addBubble('ai', "The server is not responding.");
+                addBubble('ai', "IT Service Connection Error.");
             }
         }
 
@@ -131,7 +133,6 @@
             chat.scrollTop = chat.scrollHeight;
         }
 
-        // Support 'Enter' key for both login and chat
         document.getElementById('pwd').addEventListener('keypress', (e) => { if (e.key === 'Enter') unlock(); });
         document.getElementById('msg-in').addEventListener('keypress', (e) => { if (e.key === 'Enter') send(); });
     </script>
