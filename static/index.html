@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Abhay's AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Prevents the chat from flickering before the modal loads */
+        [id="auth-modal"]:not(.hidden) ~ main,
+        [id="auth-modal"]:not(.hidden) ~ footer {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-white h-screen flex flex-col overflow-hidden">
+
+    <div id="auth-modal" class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-6">
+        <div class="bg-slate-800 p-8 rounded-2xl w-full max-w-sm border border-slate-700 shadow-2xl">
+            <h1 class="text-2xl font-bold mb-6 text-center">Abhay's AI</h1>
+            <input type="password" id="pwd" placeholder="Enter Password" 
+                class="w-full p-3 rounded-xl bg-slate-900 border border-slate-700 mb-2 outline-none focus:border-blue-500 text-white">
+            
+            <p id="error-txt" class="text-red-500 text-xs mb-4 hidden text-center font-bold tracking-tight">WRONG PASSWORD! ACCESS DENIED.</p>
+            
+            <button onclick="unlock()" id="unlock-btn" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold transition-all">Unlock</button>
+        </div>
+    </div>
+
+    <header class="p-4 border-b border-slate-800 text-center font-semibold text-slate-400">Abhay's AI</header>
+
+    <main id="chat" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col"></main>
+
+    <footer class="p-4 bg-slate-900 border-t border-slate-800">
+        <div class="max-w-4xl mx-auto flex gap-2">
+            <input type="text" id="msg-in" placeholder="Ask anything..." 
+                class="flex-1 bg-slate-800 p-3 rounded-xl outline-none border border-transparent focus:border-blue-500">
+            <button onclick="send()" id="send-btn" class="bg-blue-600 px-6 rounded-xl font-bold active:scale-95 transition-transform">Send</button>
+        </div>
+        <p id="counter" class="text-[10px] text-center mt-2 text-slate-500 uppercase font-mono tracking-widest">Messages: 0 / 5</p>
+    </footer>
+
+    <script>
+        let pass = "";
+        let sid = Math.random().toString(36).slice(2);
+
+        // SECURE UNLOCK: Asks the backend if the password is valid
+        async function unlock() {
+            const input = document.getElementById('pwd');
+            const error = document.getElementById('error-txt');
+            const btn = document.getElementById('unlock-btn');
+            
+            if (!input.value.trim()) return;
+
+            btn.disabled = true;
+            btn.innerText = "Verifying...";
+
+            try {
+                const response = await fetch('/api/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: input.value })
+                });
+
+                if (response.ok) {
+                    // Success: Save password for the session and hide the modal
+                    pass = input.value;
+                    document.getElementById('auth-modal').classList.add('hidden');
+                    error.classList.add('hidden');
+                } else {
+                    // Failure: Keep the barrier active
+                    error.classList.remove('hidden');
+                    input.value = "";
+                    input.focus();
+                }
+            } catch (e) {
+                alert("Connection Error. Is the Python server running?");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Unlock";
+            }
+        }
+
+        // SEND MESSAGE: Uses the verified password stored in memory
+        async function send() {
+            const input = document.getElementById('msg-in');
+            const btn = document.getElementById('send-btn');
+            if(!input.value.trim()) return;
+
+            const text = input.value;
+            input.value = "";
+            addBubble('user', text);
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ message: text, password: pass, session_id: sid })
+                });
+
+                // Force logout if the backend rejects the password mid-session
+                if (res.status === 401) {
+                    alert("Unauthorized session. Locking app...");
+                    location.reload(); 
+                    return;
+                }
+
+                const data = await res.json();
+                if(res.ok) {
+                    addBubble('ai', data.reply);
+                    document.getElementById('counter').innerText = `MESSAGES: ${data.count} / 5`;
+                    if(data.count >= 5) {
+                        input.disabled = true;
+                        btn.disabled = true;
+                        input.placeholder = "Limit reached.";
+                    }
+                } else {
+                    alert(data.detail || "Error communicating with AI");
+                }
+            } catch (e) {
+                addBubble('ai', "The server is not responding.");
+            }
+        }
+
+        function addBubble(role, text) {
+            const chat = document.getElementById('chat');
+            const div = document.createElement('div');
+            div.className = `p-3 rounded-2xl max-w-[85%] ${role==='user'?'bg-blue-600 self-end ml-auto text-white shadow-lg':'bg-slate-800 self-start text-slate-200 border border-slate-700'}`;
+            div.innerText = text;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // Support 'Enter' key for both login and chat
+        document.getElementById('pwd').addEventListener('keypress', (e) => { if (e.key === 'Enter') unlock(); });
+        document.getElementById('msg-in').addEventListener('keypress', (e) => { if (e.key === 'Enter') send(); });
+    </script>
+</body>
+</html>
